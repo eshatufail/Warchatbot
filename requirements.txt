@@ -8,3 +8,4 @@ langchain-groq
 chromadb
 huggingface-hub
 beautifulsoup4
+sentence-transformers
