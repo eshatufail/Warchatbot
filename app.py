@@ -7,7 +7,6 @@ from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, AIMessage
 
 # ====================== CONFIGURATION ======================
-# Secure API Key from Streamlit Secrets (recommended for deployment)
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
@@ -50,7 +49,6 @@ st.markdown(f"""
         margin-bottom: 15px; 
         padding: 12px;
     }}
-    .stSpinner > div {{ border-color: #ff4b4b !important; }}
     </style>
     """, unsafe_allow_html=True)
 
@@ -64,7 +62,7 @@ if "retriever" not in st.session_state:
     st.session_state.retriever = None
 
 # ====================== KNOWLEDGE BASE (RAG) ======================
-@st.cache_resource(show_spinner="Analyzing global intelligence data...")
+@st.cache_resource(show_spinner="Loading global intelligence data...")
 def setup_knowledge_base():
     try:
         loader = WebBaseLoader(ARTICLE_URL)
@@ -76,13 +74,18 @@ def setup_knowledge_base():
         )
         chunks = text_splitter.split_documents(data)
         
-        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-        vectorstore = Chroma.from_documents(chunks, embeddings)
+        # Fixed: Use a lightweight embedding model that doesn't require sentence-transformers
+        embeddings = HuggingFaceEmbeddings(
+            model_name="all-MiniLM-L6-v2",
+            model_kwargs={'device': 'cpu'}
+        )
         
+        vectorstore = Chroma.from_documents(chunks, embeddings)
         return vectorstore.as_retriever()
+        
     except Exception as e:
         st.error(f"❌ Failed to load knowledge base: {str(e)}")
-        st.info("Tip: Make sure 'beautifulsoup4' is added in requirements.txt")
+        st.info("Tip: Make sure 'beautifulsoup4' and 'sentence-transformers' are added in requirements.txt")
         return None
 
 if st.session_state.retriever is None:
@@ -101,7 +104,7 @@ for message in st.session_state.chat_history:
 # Chat Input
 if prompt := st.chat_input("Ask anything about World War 3 or Geopolitics..."):
     
-    # Display user message immediately
+    # Display user message
     with st.chat_message("user", avatar="👤"):
         st.markdown(prompt)
     
@@ -132,7 +135,7 @@ if prompt := st.chat_input("Ask anything about World War 3 or Geopolitics..."):
 
     # Build messages with recent history
     messages = [("system", system_prompt)]
-    for msg in st.session_state.chat_history[-8:]:   # Last 8 messages for better context
+    for msg in st.session_state.chat_history[-8:]:
         role = "human" if isinstance(msg, HumanMessage) else "assistant"
         messages.append((role, msg.content))
     messages.append(("human", prompt))
