@@ -7,4 +7,4 @@ langchain-huggingface
 langchain-groq
 chromadb
 huggingface-hub
-python-dotenv
+beautifulsoup4
