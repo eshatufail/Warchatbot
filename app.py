@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 from langchain_community.document_loaders import WebBaseLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
@@ -74,7 +75,6 @@ def setup_knowledge_base():
         )
         chunks = text_splitter.split_documents(data)
         
-        # Fixed: Use a lightweight embedding model that doesn't require sentence-transformers
         embeddings = HuggingFaceEmbeddings(
             model_name="all-MiniLM-L6-v2",
             model_kwargs={'device': 'cpu'}
@@ -85,7 +85,6 @@ def setup_knowledge_base():
         
     except Exception as e:
         st.error(f"❌ Failed to load knowledge base: {str(e)}")
-        st.info("Tip: Make sure 'beautifulsoup4' and 'sentence-transformers' are added in requirements.txt")
         return None
 
 if st.session_state.retriever is None:
@@ -104,43 +103,36 @@ for message in st.session_state.chat_history:
 # Chat Input
 if prompt := st.chat_input("Ask anything about World War 3 or Geopolitics..."):
     
-    # Display user message
     with st.chat_message("user", avatar="👤"):
         st.markdown(prompt)
     
     st.session_state.chat_history.append(HumanMessage(content=prompt))
     
-    # LLM Setup
     llm = ChatGroq(
         groq_api_key=GROQ_API_KEY,
         model_name="llama-3.3-70b-versatile",
         temperature=0.3
     )
     
-    # Retrieve context
     context_docs = st.session_state.retriever.invoke(prompt) if st.session_state.retriever else []
     context_text = "\n\n".join([doc.page_content for doc in context_docs])
 
-    # Professional System Prompt
     system_prompt = f"""
-    You are a highly professional Geopolitical Analyst and Intelligence Expert.
-    Use the provided context from The Week article to answer questions about World War 3 tensions.
-    Context: {context_text}
+    You are a highly professional Geopolitical Analyst.
+    Use the context below when answering about World War 3:
+    {context_text}
 
-    Guidelines:
-    - Maintain a serious, analytical, and confident tone.
-    - For general or greeting questions, respond naturally and professionally.
-    - Keep answers clear, well-structured, and insightful.
+    - Answer in a serious, analytical tone.
+    - For greetings or general questions, respond naturally.
+    - Keep responses clear and insightful.
     """
 
-    # Build messages with recent history
     messages = [("system", system_prompt)]
     for msg in st.session_state.chat_history[-8:]:
         role = "human" if isinstance(msg, HumanMessage) else "assistant"
         messages.append((role, msg.content))
     messages.append(("human", prompt))
 
-    # Generate Response
     with st.chat_message("assistant", avatar="🤖"):
         with st.spinner("Analyzing geopolitical situation..."):
             try:
