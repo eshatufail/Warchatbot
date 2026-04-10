@@ -9,3 +9,4 @@ chromadb
 huggingface-hub
 beautifulsoup4
 sentence-transformers
+protobuf==3.20.3
